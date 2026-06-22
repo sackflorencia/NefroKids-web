@@ -1,6 +1,7 @@
 # NefroKids Web — Unity WebGL + Firebase Hosting
 
 🌐 **Demo en vivo:** [https://nefrokids-web-1d52f.web.app/](https://nefrokids-web-1d52f.web.app/)
+🎮 **Proyecto Unity (fuente):** [NefroKids_Niv1](https://github.com/Julieta-8/NefroKids_Niv1)
 
 Pipeline para exportar un build de Unity (WebGL) y desplegarlo en Firebase Hosting.
 
@@ -19,6 +20,15 @@ Pipeline para exportar un build de Unity (WebGL) y desplegarlo en Firebase Hosti
 ---
 
 ## 1. Exportar desde Unity (WebGL)
+
+El proyecto Unity que se compila para este deploy vive en:
+👉 [https://github.com/Julieta-8/NefroKids_Niv1](https://github.com/Julieta-8/NefroKids_Niv1)
+
+```bash
+git clone https://github.com/Julieta-8/NefroKids_Niv1.git
+```
+
+Abrirlo desde Unity Hub antes de continuar.
 
 ### 1.1 Configurar plataforma
 
@@ -150,14 +160,3 @@ Unity build WebGL → copiar a public/ → firebase deploy → test en navegador
 | 404 en archivos Build | Estructura incorrecta en `public/`, assets fuera del directorio correcto |
 | WebGL no carga en móvil | Compression incompatible, problemas de memoria, CORS o headers incorrectos |
 | Firebase CLI no funciona | Error de certificados (`SELF_SIGNED_CERT_IN_CHAIN`), proxy corporativo o inspección HTTPS |
-
----
-
-## 8. Objetivo de esta configuración
-
-Este pipeline se usa para:
-
-- Validar Unity WebGL en entorno real
-- Probar integración con React (si aplica)
-- Testear performance en navegador móvil
-- Preparar futura integración React ↔ Unity
