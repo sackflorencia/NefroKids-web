@@ -130,7 +130,84 @@ Cada vez que Unity genera un build:
 
 ---
 
-## 5. Deploy a Firebase Hosting
+## 5. Comunicación React Native → Unity WebGL
+
+### ¿Por qué es necesario?
+
+Cada nuevo build WebGL genera un `index.html` que inicializa el juego mediante `createUnityInstance()`. La instancia resultante (`unityInstance`) queda encapsulada dentro de ese archivo y React Native no puede acceder a ella directamente.
+
+Para que la app pueda enviar mensajes al juego (iniciar un nivel, pasar datos del paciente, etc.) es necesario exponer una función global de JavaScript que actúe como puente. Esa función es `window.receiveFromReact`, que recibe un JSON desde el `WebView` vía `injectJavaScript()` y lo reenvía a Unity usando `unityInstance.SendMessage()`.
+
+### Código a agregar en `index.html`
+
+Dentro del `index.html` generado por Unity, localizar el bloque `script.onload` y reemplazarlo por el siguiente (el fragmento nuevo está marcado con el comentario `React Native -> Unity`):
+
+```html
+script.onload = () => {
+  createUnityInstance(canvas, config, (progress) => {
+    progressBarFull.style.width = 100 * progress + "%";
+  })
+    .then((unityInstance) => {
+      loadingBar.style.display = "none";
+
+      fullscreenButton.onclick = () => {
+        unityInstance.SetFullscreen(1);
+      };
+
+      // React Native -> Unity
+      console.log("Unity creada");
+      console.log("ReactNativeWebView:", window.ReactNativeWebView);
+      window.receiveFromReact = function (json) {
+        unityInstance.SendMessage(
+          "ReactConnection", // Nombre del GameObject en la jerarquía
+          "Receive",         // Método del script ReactConnection
+          json
+        );
+      };
+    })
+    .catch((message) => {
+      alert(message);
+    });
+};
+```
+
+### Flujo completo
+
+```
+React Native
+      │
+injectJavaScript()
+      │
+      ▼
+window.receiveFromReact(json)
+      │
+      ▼
+unityInstance.SendMessage(...)
+      │
+      ▼
+ReactConnection.Receive()
+      │
+      ▼
+OnMessageReceived
+      │
+      ▼
+LevelManager / otros managers
+```
+
+### Notas importantes
+
+- El primer parámetro de `SendMessage` (`"ReactConnection"`) es el **nombre del GameObject** en la jerarquía de Unity, no el nombre del script. Si el GameObject cambia de nombre, este valor debe actualizarse.
+- `createUnityInstance()` solo devuelve la instancia cuando el juego terminó de cargar completamente; el registro de `window.receiveFromReact` ocurre dentro del `.then()` por esa razón.
+
+### Mantenimiento
+
+> ⚠️ Este bloque **no forma parte del código generado automáticamente por Unity**. Cada nuevo build WebGL sobrescribe el `index.html`, por lo que debe volver a agregarse manualmente.
+>
+> **Mejora futura:** usar un WebGL Template personalizado para incorporar esta lógica al template y que todos los builds la incluyan de forma automática.
+
+---
+
+## 6. Deploy a Firebase Hosting
 
 ```bash
 firebase deploy --only hosting
@@ -144,15 +221,34 @@ https://<project-id>.web.app
 
 ---
 
-## 6. Flujo de trabajo recomendado
+## 7. Flujo de trabajo recomendado
 
 ```
-Unity build WebGL → copiar a public/ → firebase deploy → test en navegador → repetir
+Unity build WebGL
+        │
+        ▼
+Copiar a public/
+(index.html + Build/ + TemplateData/)
+        │
+        ▼
+Agregar puente JS en index.html
+(window.receiveFromReact dentro del .then())
+        │
+        ▼
+firebase deploy --only hosting
+        │
+        ▼
+Test en navegador
+        │
+        ▼
+Repetir
 ```
+
+> ⚠️ El paso de agregar el puente JS debe repetirse en cada build nuevo, ya que Unity sobrescribe el `index.html` automáticamente.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Síntoma | Causa probable |
 |---|---|
@@ -160,3 +256,14 @@ Unity build WebGL → copiar a public/ → firebase deploy → test en navegador
 | 404 en archivos Build | Estructura incorrecta en `public/`, assets fuera del directorio correcto |
 | WebGL no carga en móvil | Compression incompatible, problemas de memoria, CORS o headers incorrectos |
 | Firebase CLI no funciona | Error de certificados (`SELF_SIGNED_CERT_IN_CHAIN`), proxy corporativo o inspección HTTPS |
+
+---
+
+## 9. Objetivo de esta configuración
+
+Este pipeline se usa para:
+
+- Validar Unity WebGL en entorno real
+- Probar integración con React (si aplica)
+- Testear performance en navegador móvil
+- Preparar futura integración React ↔ Unity
