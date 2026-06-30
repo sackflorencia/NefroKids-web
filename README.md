@@ -158,11 +158,33 @@ script.onload = () => {
       console.log("Unity creada");
       console.log("ReactNativeWebView:", window.ReactNativeWebView);
       window.receiveFromReact = function (json) {
+
+        // Log hacia React Native
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
+              type: "DEBUG",
+              message: "Index.html recibió: " + json
+            })
+          );
+        }
+
+        // Enviar a Unity
         unityInstance.SendMessage(
-          "ReactConnection", // Nombre del GameObject en la jerarquía
-          "Receive",         // Método del script ReactConnection
+          "ReactConnection",
+          "Receive",
           json
         );
+
+        // Confirmar que SendMessage se ejecutó
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
+              type: "DEBUG",
+              message: "SendMessage ejecutado"
+            })
+          );
+        }
       };
     })
     .catch((message) => {
